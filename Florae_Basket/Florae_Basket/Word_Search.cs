@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
@@ -36,6 +37,7 @@ namespace Florae_Basket
         private Candidate[] best_latin = new Candidate[3];
         private Candidate[] best_botan = new Candidate[3];
         private Candidate[] best_notes = new Candidate[3];
+        private int[] IDs = new int[3];
         private string name;
         private string latin;
         private string botan;
@@ -48,6 +50,10 @@ namespace Florae_Basket
             latin = latin_name;
             botan = botan_name;
             note = notes;
+            for (int i = 0; i < 3; i++)
+            {
+                results[i].id = -1;
+            }
         }
 
         public Word_Search(){}
@@ -61,6 +67,8 @@ namespace Florae_Basket
         public string Get_note() => note;
 
         public Candidate[] Get_results() => results;
+
+        public int[] Get_IDs() => IDs;
 
         public void Populate(string eng, string lat, string bot, string notes)
         {
@@ -406,152 +414,192 @@ namespace Florae_Basket
         //executes the word search and populates the results array
         public void Search()
         {
+            //Mutex for critical section of the loops
+            Mutex mux = new Mutex();
+            ParallelLoopResult result;
+
             for (int i = 0; i < 3; i++)
             {
-                best_names[i].score = Int32.MinValue;
-                best_latin[i].score = Int32.MinValue;
-                best_botan[i].score = Int32.MinValue;
+                best_names[i].score = int.MinValue;
+                best_latin[i].score = int.MinValue;
+                best_botan[i].score = int.MinValue;
             }
-            Candidate temp;
+
             //Makes sure name has a value
-            if (name != null && name != "")
-            {
-                Fetch_names("English", ref possible_names);
-                
-                //Loops through pulled list
-                for (int i = 0; i < possible_names.Count; i++)
-                {
-                    //stores current candidate into for testing
-                    temp = possible_names.ElementAt(i);
-                    //runs OSA on current candidate
-                    temp.score = (double)OSA(name, temp.contents, name.Length, temp.contents.Length);
-                    
-                    if (temp.score > best_names[0].score)
-                    {
-                        best_names[2] = best_names[1];
-                        best_names[1] = best_names[0];
-                        best_names[0] = temp;
-                    }
-                    //compares with second highest
-                    else if (temp.score > best_names[1].score)
-                    {
-                        best_names[2] = best_names[1];
-                        best_names[1] = temp;
-                    }
-                    //compares with third highest
-                    else if (temp.score > best_names[2].score)
-                    {
-                        best_names[2] = temp;
-                    }
-                    //reseting temp value
-                    temp.score = 0.0;
-                    temp.id = 0;
-                    temp.contents = "";
-                }
-                FixScores(ref best_names, name);
-            }
-            else
+            if (name == null || name == "")
             {
                 for (int i = 0; i < 3; i++)
                 {
                     best_names[i].score = 0;
                 }
             }
-            //clearing list for next word to be run
-            possible_names.Clear();
-            if (latin != null && latin != "")
+            else
             {
-                Fetch_names("Latin", ref possible_names);
+                Fetch_names("English", ref possible_names);
 
                 //Loops through pulled list
-                for (int i = 0; i < possible_names.Count; i++)
+                //Uses Parallel for, which runs each iteration in one of 4 threads.
+                result = Parallel.For(0, possible_names.Count, new ParallelOptions { MaxDegreeOfParallelism = 4 }, i =>
                 {
+                    Console.WriteLine("Thread iteration " + i + " starts\n");
+                    Candidate temp;
                     //stores current candidate into for testing
                     temp = possible_names.ElementAt(i);
                     //runs OSA on current candidate
-                    temp.score = (double)OSA(latin, temp.contents, latin.Length, temp.contents.Length);
-                    
-                    //Compares score with current best score
-                    if (temp.score > best_latin[0].score)
+                    temp.score = (double)OSA(name, temp.contents, name.Length, temp.contents.Length);
+
+                    if (temp.score > best_names[2].score)
                     {
-                        best_latin[2] = best_latin[1];
-                        best_latin[1] = best_latin[0];
-                        best_latin[0] = temp;
-                    }
-                    //compares with second highest
-                    else if (temp.score > best_latin[1].score)
-                    {
-                        best_latin[2] = best_latin[1];
-                        best_latin[1] = temp;
-                    }
-                    //compares with third highest
-                    else if (temp.score > best_latin[2].score)
-                    {
-                        best_latin[2] = temp;
+                        //tells thread to wait
+                        mux.WaitOne();
+                        Console.WriteLine(i + " enters\n");
+                        if (temp.score > best_names[0].score)
+                        {
+                            best_names[2] = best_names[1];
+                            best_names[1] = best_names[0];
+                            best_names[0] = temp;
+                        }
+                        //compares with second highest
+                        else if (temp.score > best_names[1].score)
+                        {
+                            best_names[2] = best_names[1];
+                            best_names[1] = temp;
+                        }
+                        //compares with third highest
+                        else if (temp.score > best_names[2].score)
+                        {
+                            best_names[2] = temp;
+                        }
+                        Console.WriteLine(i + " leaves\n");
+                        //releases thread
+                        mux.ReleaseMutex();
                     }
                     //reseting temp value
                     temp.score = 0.0;
                     temp.id = 0;
                     temp.contents = "";
-                }
-                FixScores(ref best_latin, latin);
+                    Console.WriteLine("Thread iteration " + i + " ends\n");
+                });
+                Console.WriteLine("Result: {0}", result.IsCompleted ? "Completed Normally" : string.Format("Completed to {0}", result.LowestBreakIteration));
+                FixScores(ref best_names, name);
             }
-            else
+            //clearing list for next word to be run
+            possible_names.Clear();
+            if (latin == null || latin == "")
             {
                 for (int i = 0; i < 3; i++)
                 {
                     best_latin[i].score = 0;
                 }
             }
-            //clearing list for next word to be run
-            possible_names.Clear();
-            if (botan != null && botan != "")
+            else
             {
-                Fetch_names("Botanical", ref possible_names);
-                
+                Fetch_names("Latin", ref possible_names);
+
                 //Loops through pulled list
-                for (int i = 0; i < possible_names.Count; i++)
+                result = Parallel.For(0, possible_names.Count, new ParallelOptions { MaxDegreeOfParallelism = 4 }, i =>
                 {
+                    Candidate temp;
                     //stores current candidate into for testing
                     temp = possible_names.ElementAt(i);
                     //runs OSA on current candidate
-                    temp.score = (double)OSA(botan, temp.contents, botan.Length, temp.contents.Length);
+                    temp.score = (double)OSA(latin, temp.contents, latin.Length, temp.contents.Length);
+
                     //Compares score with current best score
-                    if (temp.score > best_botan[0].score)
+                    if (temp.score > best_latin[2].score)
                     {
-                        best_botan[2] = best_botan[1];
-                        best_botan[1] = best_botan[0];
-                        best_botan[0] = temp;
-                    }
-                    //compares with second highest
-                    else if (temp.score > best_botan[1].score)
-                    {
-                        best_botan[2] = best_botan[1];
-                        best_botan[1] = temp;
-                    }
-                    //compares with third highest
-                    else if (temp.score > best_botan[2].score)
-                    {
-                        best_botan[2] = temp;
+                        mux.WaitOne();
+                        Console.WriteLine(i + " enters\n");
+                        if (temp.score > best_latin[0].score)
+                        {
+                            best_latin[2] = best_latin[1];
+                            best_latin[1] = best_latin[0];
+                            best_latin[0] = temp;
+                        }
+                        //compares with second highest
+                        else if (temp.score > best_latin[1].score)
+                        {
+                            best_latin[2] = best_latin[1];
+                            best_latin[1] = temp;
+                        }
+                        //compares with third highest
+                        else if (temp.score > best_latin[2].score)
+                        {
+                            best_latin[2] = temp;
+                        }
+                        Console.WriteLine(i + " leaves\n");
+                        mux.ReleaseMutex();
                     }
                     //reseting temp value
                     temp.score = 0.0;
                     temp.id = 0;
                     temp.contents = "";
-                }
-                FixScores(ref best_botan, botan);
+                });
+                Console.WriteLine("Result: {0}", result.IsCompleted ? "Completed Normally" : string.Format("Completed to {0}", result.LowestBreakIteration));
+                FixScores(ref best_latin, latin);
             }
-            else
+            //clearing list for next word to be run
+            possible_names.Clear();
+            if (botan == null || botan == "")
             {
                 for (int i = 0; i < 3; i++)
                 {
                     best_botan[i].score = 0;
                 }
             }
+            else
+            {
+                Fetch_names("Botanical", ref possible_names);
+
+                //Loops through pulled list
+                result = Parallel.For(0, possible_names.Count, new ParallelOptions { MaxDegreeOfParallelism = 4 }, i =>
+                {
+                    Candidate temp;
+                    //stores current candidate into for testing
+                    temp = possible_names.ElementAt(i);
+                    //runs OSA on current candidate
+                    temp.score = (double)OSA(botan, temp.contents, botan.Length, temp.contents.Length);
+                    //Compares score with current best score
+                    if (temp.score > best_botan[2].score)
+                    {
+                        mux.WaitOne();
+                        Console.WriteLine(i + " enters\n");
+                        if (temp.score > best_names[0].score)
+                        {
+                            best_botan[2] = best_botan[1];
+                            best_botan[1] = best_botan[0];
+                            best_botan[0] = temp;
+                        }
+                        //compares with second highest
+                        else if (temp.score > best_names[1].score)
+                        {
+                            best_botan[2] = best_botan[1];
+                            best_botan[1] = temp;
+                        }
+                        //compares with third highest
+                        else if (temp.score > best_botan[2].score)
+                        {
+                            best_botan[2] = temp;
+                        }
+                        Console.WriteLine(i + " leaves\n");
+                        mux.ReleaseMutex();
+                    }
+                    //reseting temp value
+                    temp.score = 0.0;
+                    temp.id = 0;
+                    temp.contents = "";
+                });
+                Console.WriteLine("Result: {0}", result.IsCompleted ? "Completed Normally" : string.Format("Completed to {0}", result.LowestBreakIteration));
+                FixScores(ref best_botan, botan);
+            }
             possible_names.Clear();
             Note_Search();
             possible_names.Clear();
             Compare();
+            for (int i = 0; i < 3; i++)
+            {
+                IDs[i] = results[i].id;
+            }
         }
     }
 }

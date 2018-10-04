@@ -1,26 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+
+//////////////////////////////////////////////////
+//                                              //
+//  United_GUI                                  //
+//  by Brady Smith                              //
+//                                              //
+//////////////////////////////////////////////////
 
 namespace Florae_Basket
 {
     public partial class United_GUI : Form
     {
-        public United_GUI()
-        {
-            InitializeComponent();
-        }
+        public United_GUI() => InitializeComponent();
 
         ///////////////////////
         ////UNIVERSAL START////
         ///////////////////////
-        
+
         //for use with each different function.
         //Admin:      3
         //Researcher: 2
@@ -41,6 +40,7 @@ namespace Florae_Basket
             DeactivatePanel(ref temppan);
             tempaction();
             AddFlowerPicFileExt = SearchFlowerExt =  "";
+            //ResultIds[0] = ResultIds[1] = ResultIds[2] = -1;
         }
 
         //Handles the actions needed to disable the correct panels in order to sign the user out.
@@ -56,6 +56,7 @@ namespace Florae_Basket
                 }
             }
             AddFlowerPicFileExt = SearchFlowerExt = "";
+            ResultIds[0] = ResultIds[1] = ResultIds[2] = -1;
             LoginAcvtivate();
         }
 
@@ -79,6 +80,19 @@ namespace Florae_Basket
                 }
             }
             pan.Visible = false;
+        }
+
+        //This method is used to change the image for any given picturebox.
+        //It will also resize the picture to any needed size.
+        private void ChangePicture(ref PictureBox picture, string filepath, int x, int y)
+        {
+            if (filepath != null && filepath != "")
+            {
+                Bitmap img = new Bitmap(filepath);
+                Bitmap resized = new Bitmap(img, x, y);
+                picture.Image = resized;
+                picture.SizeMode = PictureBoxSizeMode.AutoSize;
+            }
         }
 
         ///////////////////////
@@ -117,27 +131,13 @@ namespace Florae_Basket
         //Username textbox
         private void TextBox1_TextChanged(object sender, EventArgs e)
         {
-            if (Password_txt.Text != "" && Username_txt.Text != "")
-            {
-                Login_submit.Enabled = true;
-            }
-            else
-            {
-                Login_submit.Enabled = false;
-            }
+            Login_submit.Enabled = Password_txt.Text != "" && Username_txt.Text != "" ? true : false;
         }
 
         //Password textbox
         private void TextBox2_TextChanged(object sender, EventArgs e)
         {
-            if (Password_txt.Text != "" && Username_txt.Text != "")
-            {
-                Login_submit.Enabled = true;
-            }
-            else
-            {
-                Login_submit.Enabled = false;
-            }
+            Login_submit.Enabled = Password_txt.Text != "" && Username_txt.Text != "" ? true : false;
         }
 
         //Called when incorrect info is given
@@ -205,14 +205,8 @@ namespace Florae_Basket
         private void LandingActivate()
         {
             LandingPage.Visible = true;
-            if (accType >= 2)
-            {
-                AddFlowerButton.Enabled = true;
-            }
-            if (accType == 3)
-            {
-                UserControlButton.Enabled = true;
-            }
+            AddFlowerButton.Enabled = accType >= 2;
+            UserControlButton.Enabled = accType == 3;
             SearchButton.Enabled = true;
         }
 
@@ -263,14 +257,7 @@ namespace Florae_Basket
 
         private void AddFlowerSubmitValidate()
         {
-            if (EnglishNameTextbox.Text != "" && LatinNameTextbox.Text != "" && BotanicalFamilyTextbox.Text != "")
-            {
-                AddFlowerSubmitButton.Enabled = true;
-            }
-            else
-            {
-                AddFlowerSubmitButton.Enabled = false;
-            }
+            AddFlowerSubmitButton.Enabled = EnglishNameTextbox.Text != "" && LatinNameTextbox.Text != "" && BotanicalFamilyTextbox.Text != "" ? true : false;
         }
 
         //English name textbox
@@ -298,6 +285,7 @@ namespace Florae_Basket
 
         private void AddFlowerPictureButton_Click(object sender, EventArgs e)
         {
+            //Sets up the file dialog to select the picture
             OpenFileDialog selectImgPath = new OpenFileDialog
             {
                 Filter = "Image Files| *.jpg; *.jpeg; *.png; *.gif; *gifv;...",
@@ -308,12 +296,10 @@ namespace Florae_Basket
             if (selectImgPath.ShowDialog() == DialogResult.OK)
                 AddFlowerPicFileExt = selectImgPath.FileName;
 
+            //resizes image to be displayed on screen
             if (AddFlowerPicFileExt != "" && AddFlowerPicFileExt != null)
             {
-                Bitmap img = new Bitmap(AddFlowerPicFileExt);
-                Bitmap resized = new Bitmap(img, 400, 400);
-                AddFlowerImageDisplay.Image = resized;
-                AddFlowerImageDisplay.SizeMode = PictureBoxSizeMode.AutoSize;
+                ChangePicture(ref AddFlowerImageDisplay, AddFlowerPicFileExt, 400, 400);
             }
         }
 
@@ -369,21 +355,16 @@ namespace Florae_Basket
             BotanicalSearchBox.Enabled = true;
             NoteSearchBox.Enabled = true;
             SearchImageButton.Enabled = true;
+            ResultIds[0] = ResultIds[1] = ResultIds[2] = -1;
         }
 
         private void SearchValidate()
         {
-            if (EnglishSearchBox.Text != "" ||
+            SearchFlowersButton.Enabled = EnglishSearchBox.Text != "" ||
                 LatinSearchBox.Text != "" ||
                 BotanicalSearchBox.Text != "" ||
-                NoteSearchBox.Text != "")
-            {
-                SearchFlowersButton.Enabled = true;
-            }
-            else
-            {
-                SearchFlowersButton.Enabled = false;
-            }
+                NoteSearchBox.Text != ""
+                ? true : false;
         }
 
         private void EnglishSearchBox_TextChanged(object sender, EventArgs e)
@@ -420,10 +401,7 @@ namespace Florae_Basket
 
             if (SearchFlowerExt != "" && SearchFlowerExt != null)
             {
-                Bitmap img = new Bitmap(SearchFlowerExt);
-                Bitmap resized = new Bitmap(img, 400, 400);
-                SearchImagePictureBox.Image = resized;
-                SearchImagePictureBox.SizeMode = PictureBoxSizeMode.AutoSize;
+                ChangePicture(ref AddFlowerImageDisplay, SearchFlowerExt, 400, 400);
             }
         }
 
@@ -437,6 +415,20 @@ namespace Florae_Basket
             {
                 word = new Word_Search(EnglishSearchBox.Text, LatinSearchBox.Text, BotanicalSearchBox.Text, NoteSearchBox.Text);
                 word.Search();
+
+                //Checks to see if there are any results present
+                if (word.Get_results()[0].id > -1)
+                {
+                    int[] temp = word.Get_IDs();
+                    DeactivatePanel(ref SearchPage);
+                    PreviousPanels.Push(SearchActivate);
+                    CurrentPanels.Push(ResultsPage);
+                    ResultsActivate(temp[0], temp[1], temp[2]);
+                }
+                else
+                {
+                    MessageBox.Show("No flowers found in database.");
+                }
             }
             if (SearchFlowerExt != null && SearchFlowerExt != "")
             {
@@ -447,5 +439,112 @@ namespace Florae_Basket
         //////////////////////
         ////  SEARCH END  ////
         //////////////////////
+
+        //////////////////////
+        //////////////////////
+
+        ///////////////////////
+        //// RESULTS BEGIN ////
+        ///////////////////////
+
+        private int[] ResultIds = new int[3];
+
+        //This overloaded method is only to be used in the PreviousPanels stack, as that
+        //stack is of type action, and the main ResultsActivate method is of type func.
+        private void ResultsActivate()
+        {
+            ResultsActivate(ResultIds[0], ResultIds[1], ResultIds[2]);
+        }
+
+        private void ResultsActivate(int one, int two, int three)
+        {
+            ResultsPage.Visible = true;
+            ResultButton1.Enabled = one > -1;
+            ResultButton2.Enabled = two > -1;
+            ResultButton3.Enabled = three > -1;
+            ResultTextbox1.Enabled = true;
+            ResultTextbox2.Enabled = true;
+            ResultTextbox3.Enabled = true;
+            ResultIds[0] = one;
+            ResultIds[1] = two;
+            ResultIds[2] = three;
+            CreateResults();
+        }
+
+        private void CreateResults()
+        {
+            string temp;
+
+            temp = FetchPicture(ResultIds[0]);
+            ChangePicture(ref ResultBox1, temp, 300, 300);
+            ResultTextbox1.Text = FetchResultName(ResultIds[0]);
+            if (ResultIds[1] > -1)
+            {
+                temp = FetchPicture(ResultIds[1]);
+                ChangePicture(ref Resultbox2, temp, 300, 300);
+                ResultTextbox2.Text = FetchResultName(ResultIds[1]);
+                if (ResultIds[2] > -1)
+                {
+                    temp = FetchPicture(ResultIds[2]);
+                    ChangePicture(ref ResultBox3, temp, 300, 300);
+                    ResultTextbox3.Text = FetchResultName(ResultIds[2]);
+                }
+            }
+        }
+
+        private string FetchPicture(int id)
+        {
+            return new Database_Manager().FetchFilePath(id);
+        }
+
+        private string FetchResultName(int id)
+        {
+            return new Database_Manager().FetchEnglish(id);
+        }
+
+        private void ResultButton1_Click(object sender, EventArgs e)
+        {
+            DeactivatePanel(ref ResultsPage);
+            PreviousPanels.Push(ResultsActivate);
+            CurrentPanels.Push(FlowerProfilePage);
+            FlowerProfileActivate(ResultIds[0]);
+        }
+
+        private void ResultButton2_Click(object sender, EventArgs e)
+        {
+            DeactivatePanel(ref ResultsPage);
+            PreviousPanels.Push(ResultsActivate);
+            CurrentPanels.Push(FlowerProfilePage);
+            FlowerProfileActivate(ResultIds[1]);
+        }
+
+        private void ResultButton3_Click(object sender, EventArgs e)
+        {
+            DeactivatePanel(ref ResultsPage);
+            PreviousPanels.Push(ResultsActivate);
+            CurrentPanels.Push(FlowerProfilePage);
+            FlowerProfileActivate(ResultIds[2]);
+        }
+
+        ///////////////////////
+        ////  RESULTS END  ////
+        ///////////////////////
+        
+        ////////////////////////
+        ////////////////////////
+        
+        //////////////////////////
+        ///FLOWER PROFILE BEGIN///
+        //////////////////////////
+        
+        private void FlowerProfileActivate(int id)
+        {
+            FlowerProfilePage.Visible = true;
+        }
+
+        //////////////////////////
+        /// FLOWER PROFILE END ///
+        //////////////////////////
+        
     }
 }
